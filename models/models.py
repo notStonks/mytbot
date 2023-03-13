@@ -1,27 +1,35 @@
-from database import metadata
+from sqlalchemy.orm import relationship
 
-from sqlalchemy import Table, Integer, String, Column, ForeignKey, TIMESTAMP
 
-medicine = Table(
-    'medicine',
-    metadata,
-    Column('id', Integer(), primary_key=True),
-    Column('user_id', Integer(), nullable=False),
-    Column('name', String(), nullable=False)
-)
+from sqlalchemy import Table, Integer, String, Column, ForeignKey, Time, Boolean
+from database import Base
 
-receive = Table(
-    'receive',
-    metadata,
-    Column('id', Integer(), primary_key=True),
-    Column('medicine_id', Integer(), ForeignKey('medicine.id')),
-    Column('number_of_receptions', Integer()),
-    Column("number_of_reception", Integer())  #  время приема (в зависимости от пищи, до, во время или после нее) 0-3
-)
+import enum
 
-time = Table(
-    'time',
-    metadata,
-    Column('id', Integer(), ForeignKey('receive.id')),
-    Column('reception_time', TIMESTAMP)
-)
+
+# class time_of_receptionsEnum(enum.Enum):
+#     before = 0
+#     during_a_meal = 1
+#     after = 2
+#     regardless = 3
+
+
+class Medicine(Base):
+    __tablename__ = 'medicine'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False)
+    name = Column(String, nullable=False)
+    number_of_receptions = Column(Integer, nullable=False)
+    time_of_reception = Column(Integer, nullable=False)  # время приема (в зависимости от пищи, до, во время или после нее) 0-3
+    notifications = Column(Boolean, default=True)
+    times = relationship('Time', cascade="all, delete", passive_deletes=True)
+
+
+class Time(Base):
+    __tablename__ = 'time'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    reception_time = Column(Time, nullable=False)
+    medicine_id = Column(Integer, ForeignKey('medicine.id', ondelete="CASCADE"))
+
