@@ -12,6 +12,6 @@ COPY . .
 
 RUN chmod a+x docker/*.sh
 
-CMD docker compose build
+RUN docker compose build
 
-CMD docker compose up
+RUN docker compose up
