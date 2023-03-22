@@ -1,4 +1,5 @@
 /.env
+/.env-render
 /.idea
 /__pycache__
 /venv/

@@ -12,6 +12,7 @@ COPY . .
 
 RUN chmod a+x docker/*.sh
 
-RUN docker compose build
+RUN alembic upgrade head
 
-RUN docker compose up
+CMD python main.py
+
