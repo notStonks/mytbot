@@ -103,7 +103,7 @@ async def times_add(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         m_id = await db_requests.db_add(state)
         for t in data['times']:
-            aioschedule.every().day.at(t).do(notification, message.from_user.id, data["name"], data["time"].strftime("%H:%M")).tag(m_id, message.from_user.id)
+            aioschedule.every().day.at(t).do(notification, message.from_user.id, data["name"], t.strftime("%H:%M")).tag(m_id, message.from_user.id)
 
     await state.finish()
     await message.answer("Успешно добавлено")

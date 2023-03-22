@@ -1,5 +1,5 @@
 #!/bin/bash
 
-alembic upgrade head
+#alembic upgrade head
 
-python main.py
+#python main.py

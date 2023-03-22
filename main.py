@@ -20,6 +20,7 @@ async def on_startup(_):
 
 async def on_startup_web(dp):
     await bot.set_webhook(config.URL_APP)
+    asyncio.create_task(handlers.scheduler())
 
 
 async def on_shutdown(dp):
