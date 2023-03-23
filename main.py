@@ -1,36 +1,42 @@
-import asyncio
 import logging
 import os
-
-from aiogram import Bot, Dispatcher, executor, types
+from aiogram import executor
 
 import config
 from creation_bot import dp, bot
 import handlers
-
-# from database import db
+from scheduler import scheduler
 
 logging.basicConfig(level=logging.INFO)
 
-
 async def on_startup(_):
-    asyncio.create_task(handlers.scheduler())
+    #asyncio.create_task(handlers.scheduler())
+    scheduler.start()
+    await handlers.schedule()
     print("Bot online")
+
+async def on_shutdown(_):
+    scheduler.shutdown(wait=False)
 
 
 async def on_startup_web(dp):
     await bot.set_webhook(config.URL_APP)
-    asyncio.create_task(handlers.scheduler())
+    scheduler.start()
+    await handlers.schedule()
+    print("Bot online")
+    #asyncio.create_task(handlers.scheduler())
 
 
-async def on_shutdown(dp):
-    await bot.delete_webhook()
+
+# async def on_shutdown(dp):
+#     scheduler.shutdown(wait=False)
+#     await bot.delete_webhook()
 
 
 handlers.reg_handlers(dp)
 
 if __name__ == "__main__":
-    #executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
+    # executor.start_polling(dp, skip_updates=True, on_startup=on_startup, on_shutdown=on_shutdown)
     executor.start_webhook(
         dispatcher=dp,
         webhook_path='',

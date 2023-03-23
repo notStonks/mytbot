@@ -1,16 +1,15 @@
-from sqlalchemy import select, delete, update, case
+from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import engine
 from models.models import Medicine, Time
-from datetime import time
 
 
 async def db_read(user_id=None, flag=False):
     async with AsyncSession(bind=engine) as session:
         if user_id is None:
             stmt = select(Medicine.id, Medicine.user_id, Medicine.name, Medicine.time_of_reception,
-                          Time.reception_time).where(Time.medicine_id == Medicine.id, Medicine.notifications is True)
+                          Time.reception_time).where(Time.medicine_id == Medicine.id, Medicine.notifications == True)
         elif flag:
             stmt = select(Medicine.id, Medicine.user_id, Medicine.name, Medicine.time_of_reception,
                           Time.reception_time).where(Medicine.user_id == user_id, Time.medicine_id == Medicine.id)
@@ -72,6 +71,7 @@ async def db_edit_notify(user_id, flag):
             stmt = update(Medicine).where(Medicine.user_id == user_id).values(notifications=flag)
             await session.execute(stmt)
             await session.commit()
+            return True
         else:
             return False
         # stmt = update(Medicine).where(

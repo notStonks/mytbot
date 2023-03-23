@@ -1,17 +1,13 @@
-import asyncio
 import datetime
-
 from aiogram import types, Dispatcher
 from aiogram.dispatcher.filters import Text
 from creation_bot import bot
-from keyboards import start_keyboard, user_kb, time_kb
+from keyboards import user_kb, time_kb
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
-import db_requests
+from database import db_requests
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-import aioschedule
-from datetime import time
-
+from scheduler import scheduler
 
 enum = ["до", "во время", "после", "вне зависимости от"]
 
@@ -103,8 +99,10 @@ async def times_add(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         m_id = await db_requests.db_add(state)
         for t in data['times']:
-            aioschedule.every().day.at(t.strftime("%H:%M")).do(notification, message.from_user.id, data["name"], data["time"]).tag(m_id, message.from_user.id)
-
+            # aioschedule.every().day.at(t.strftime("%H:%M")).do(notification, message.from_user.id, data["name"], data["time"]).tag(m_id, message.from_user.id)
+            scheduler.add_job(notification, 'cron', id=f"{m_id}:{message.from_user.id}",
+                              args=(message.from_user.id, data["name"], data["time"]), hour=t.hour,
+                              minute=t.minute)
     await state.finish()
     await message.answer("Успешно добавлено")
 
@@ -118,15 +116,28 @@ async def delete_item(message: types.Message):
 
 
 async def delete_item_callback(callback: types.CallbackQuery):
-    await db_requests.db_del(int(callback.data.replace("del ", "")))
-    aioschedule.clear(tag=int(callback.data.replace("del ", "")))
+    m_id = callback.data.replace("del ", "")
+    await db_requests.db_del(int(m_id))
+    # aioschedule.clear(tag=int(callback.data.replace("del ", "")))
+    jobs_to_del = [job.id for job in scheduler.get_jobs() if job.id.split(":")[0] == m_id]
+    for job in jobs_to_del:
+        scheduler.remove_job(job)
+    del jobs_to_del
     await callback.answer(text="Лекарство удалено", show_alert=True)
 
 
 async def delete_all(message: types.Message):
     await db_requests.deb_del_all(message.from_user.id)
-    aioschedule.clear(tag=message.from_user.id)
+    # aioschedule.clear(tag=message.from_user.id)
+    await delete_jobs(message.from_user.id)
     await message.answer("Все лекарства удалены")
+
+
+async def delete_jobs(user_id: str):
+    jobs_to_del = [job.id for job in scheduler.get_jobs() if job.id.split(":")[1] == str(user_id)]
+    for job in jobs_to_del:
+        scheduler.remove_job(job)
+    del jobs_to_del
 
 
 async def turn_on_notifications(message: types.Message):
@@ -135,27 +146,41 @@ async def turn_on_notifications(message: types.Message):
         await message.answer("Уведомления уже включены")
         return
     else:
-        result = await db_requests.db_read(user_id=message.from_user.id, flag=True)
+        # result = await db_requests.db_read(user_id=message.from_user.id, flag=True)
+        # for row in result.all():
+        #     t: datetime.time = row[4]
+        #     aioschedule.every().day.at(t.strftime("%H:%M")).do(notification, row[1], row[2], row[3]).tag(row[0], row[1])
+        result = await db_requests.db_read(user_id=None)
         for row in result.all():
             t: datetime.time = row[4]
-            aioschedule.every().day.at(t.strftime("%H:%M")).do(notification, row[1], row[2], row[3]).tag(row[0], row[1])
+            scheduler.add_job(notification, 'cron', id=f"{row[0]}:{row[1]}:{str(t)}", args=(row[1], row[2], row[3]),
+                              hour=t.hour, minute=t.minute)
         await message.answer("Уведомления включены")
 
 
 async def turn_off_notifications(message: types.Message):
     await db_requests.db_edit_notify(user_id=message.from_user.id, flag=False)
-    aioschedule.clear(tag=message.from_user.id)
+    # aioschedule.clear(tag=message.from_user.id)
+    await delete_jobs(message.from_user.id)
     await message.answer("Все уведомления отключены")
 
 
-async def scheduler():
-    result = await db_requests.db_read()
+# async def scheduler():
+#     result = await db_requests.db_read()
+#     for row in result.all():
+#         t: datetime.time = row[4]
+#         aioschedule.every().day.at(t.strftime("%H:%M")).do(notification, row[1], row[2], row[3]).tag(row[0], row[1])
+#     while True:
+#         await aioschedule.run_pending()
+#         await asyncio.sleep(1)
+
+async def schedule():
+    scheduler.remove_all_jobs()
+    result = await db_requests.db_read(user_id=None)
     for row in result.all():
         t: datetime.time = row[4]
-        aioschedule.every().day.at(t.strftime("%H:%M")).do(notification, row[1], row[2], row[3]).tag(row[0], row[1])
-    while True:
-        await aioschedule.run_pending()
-        await asyncio.sleep(1)
+        scheduler.add_job(notification, 'cron', id=f"{row[0]}:{row[1]}:{str(t)}", args=(row[1], row[2], row[3]),
+                          hour=t.hour, minute=t.minute)
 
 
 async def notification(user_id, medicine_name, reception_time):
