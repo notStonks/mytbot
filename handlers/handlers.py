@@ -37,8 +37,12 @@ async def add_medicine_start(message: types.Message):
     await message.answer("Напиши название лекарства")
 
 
-# Выход из состояния машины
+#
 async def cancel_handler(message: types.Message, state: FSMContext):
+    """
+        Выход из состояния машины
+    """
+
     current_state = await state.get_state()
     if current_state is None:
         return
@@ -78,13 +82,6 @@ async def time_of_reception_add_callback(callback: types.CallbackQuery, state: F
                            text="Во сколько будем принимать лекарста? Ответь в формате: 12:00, 15:30, 19:40 и тд")
 
 
-# async def time_of_reception_add(message: types.Message, state: FSMContext):
-#     async with state.proxy() as data:
-#         data['time'] = message.text
-#     await FSMadd.next()
-#     await message.answer("Во сколько будем принимать лекарста? Ответь в формате: 12:00, 15:30, 19:40 и тд")
-
-
 async def times_add(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         try:
@@ -99,18 +96,32 @@ async def times_add(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         m_id = await db_requests.db_add(state)
         for t in data['times']:
-            # aioschedule.every().day.at(t.strftime("%H:%M")).do(notification, message.from_user.id, data["name"], data["time"]).tag(m_id, message.from_user.id)
-            scheduler.add_job(notification, 'cron', id=f"{m_id}:{message.from_user.id}",
+            scheduler.add_job(notification, 'cron', id=f"{m_id}:{message.from_user.id}:{str(t)}",
                               args=(message.from_user.id, data["name"], data["time"]), hour=t.hour,
                               minute=t.minute)
     await state.finish()
     await message.answer("Успешно добавлено")
 
 
+async def view_all(message: types.Message):
+    result = await db_requests.db_read(message.from_user.id)
+    result = result.all()
+    if not result:
+        await message.answer("Лекарств нет")
+        return
+    for row in result:
+        times = " ".join([time.reception_time.strftime("%H:%M") for time in row.Medicine.times])
+        await message.answer(f"{row.Medicine.name}\nПрием: {row.Medicine.number_of_receptions} раз(а) в день {enum[row.Medicine.time_of_reception]} еды.\nВ {times}")
+
+
 async def delete_item(message: types.Message):
     result = await db_requests.db_read(message.from_user.id)
-    for row in result.all():
-        await bot.send_message(message.from_user.id, text=f"{row[1]}\nПрием: {row[2]} раз(а) в день",
+    result = result.all()
+    if not result:
+        await message.answer("Лекарств нет")
+        return
+    for row in result:
+        await bot.send_message(message.from_user.id, text=f"{row.Medicine.name}\nПрием: {row.Medicine.number_of_receptions} раз(а) в день",
                                reply_markup=InlineKeyboardMarkup(). \
                                add(InlineKeyboardButton(f"Удалить", callback_data=f"del {row[0]}")))
 
@@ -118,7 +129,6 @@ async def delete_item(message: types.Message):
 async def delete_item_callback(callback: types.CallbackQuery):
     m_id = callback.data.replace("del ", "")
     await db_requests.db_del(int(m_id))
-    # aioschedule.clear(tag=int(callback.data.replace("del ", "")))
     jobs_to_del = [job.id for job in scheduler.get_jobs() if job.id.split(":")[0] == m_id]
     for job in jobs_to_del:
         scheduler.remove_job(job)
@@ -128,7 +138,6 @@ async def delete_item_callback(callback: types.CallbackQuery):
 
 async def delete_all(message: types.Message):
     await db_requests.deb_del_all(message.from_user.id)
-    # aioschedule.clear(tag=message.from_user.id)
     await delete_jobs(message.from_user.id)
     await message.answer("Все лекарства удалены")
 
@@ -146,10 +155,6 @@ async def turn_on_notifications(message: types.Message):
         await message.answer("Уведомления уже включены")
         return
     else:
-        # result = await db_requests.db_read(user_id=message.from_user.id, flag=True)
-        # for row in result.all():
-        #     t: datetime.time = row[4]
-        #     aioschedule.every().day.at(t.strftime("%H:%M")).do(notification, row[1], row[2], row[3]).tag(row[0], row[1])
         result = await db_requests.db_read(user_id=None)
         for row in result.all():
             t: datetime.time = row[4]
@@ -160,19 +165,9 @@ async def turn_on_notifications(message: types.Message):
 
 async def turn_off_notifications(message: types.Message):
     await db_requests.db_edit_notify(user_id=message.from_user.id, flag=False)
-    # aioschedule.clear(tag=message.from_user.id)
     await delete_jobs(message.from_user.id)
     await message.answer("Все уведомления отключены")
 
-
-# async def scheduler():
-#     result = await db_requests.db_read()
-#     for row in result.all():
-#         t: datetime.time = row[4]
-#         aioschedule.every().day.at(t.strftime("%H:%M")).do(notification, row[1], row[2], row[3]).tag(row[0], row[1])
-#     while True:
-#         await aioschedule.run_pending()
-#         await asyncio.sleep(1)
 
 async def schedule():
     scheduler.remove_all_jobs()
@@ -188,18 +183,17 @@ async def notification(user_id, medicine_name, reception_time):
 
 
 def reg_handlers(dp: Dispatcher):
-    dp.register_message_handler(start, Text(equals="start"))
+    dp.register_message_handler(start, Text(equals="start"), commands="start")
     dp.register_message_handler(add_medicine_start, Text(equals="Добавить лекарство"), state=None)
     dp.register_message_handler(cancel_handler, Text(equals="Отмена"), state="*")
     dp.register_message_handler(name_add, state=FSMadd.name)
     dp.register_message_handler(number_of_receptions_add, state=FSMadd.number_of_receptions)
-    # dp.register_message_handler(time_of_reception_add, state=FSMadd.time_of_reception)
     dp.register_callback_query_handler(time_of_reception_add_callback, lambda n: n.data in "0123",
                                        state=FSMadd.time_of_reception)
     dp.register_message_handler(times_add, state=FSMadd.times)
     dp.register_message_handler(delete_item, Text(equals="Удалить лекарство"))
     dp.register_message_handler(delete_all, Text(equals="Удалить все лекарства"))
     dp.register_callback_query_handler(delete_item_callback, Text(startswith="del "))
-    # dp.register_message_handler(scheduler, Text(equals="Напомни"))
     dp.register_message_handler(turn_on_notifications, Text(equals="Включить напоминания"))
     dp.register_message_handler(turn_off_notifications, Text(equals="Выключить напоминания"))
+    dp.register_message_handler(view_all, Text(equals="Посмотреть лекарства"))

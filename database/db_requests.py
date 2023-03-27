@@ -1,6 +1,5 @@
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from database import engine
 from models.models import Medicine, Time
 
@@ -14,8 +13,10 @@ async def db_read(user_id=None, flag=False):
             stmt = select(Medicine.id, Medicine.user_id, Medicine.name, Medicine.time_of_reception,
                           Time.reception_time).where(Medicine.user_id == user_id, Time.medicine_id == Medicine.id)
         else:
-            stmt = select(Medicine.id, Medicine.name, Medicine.number_of_receptions).where(Medicine.user_id == user_id)
-        return await session.execute(stmt)
+            stmt = select(Medicine).where(Medicine.user_id == user_id)
+        res = await session.execute(stmt)
+        res.unique()
+        return res
 
 
 async def db_add(state):
@@ -35,12 +36,10 @@ async def db_add(state):
                 m_id = m.id
                 times = []
                 for t in data["times"]:
-                    # h, min = t.split(":")
                     tel = Time(
-                        # reception_time=datetime.datetime.strptime(t, '%H:%M').time(),
-                        # reception_time=time(hour=int(h), minute=int(min)),
                         reception_time=t,
-                        medicine_id=m_id
+                        medicine_id=m_id,
+                        medicine=m
                     )
                     times.append(tel)
 
@@ -67,16 +66,10 @@ async def db_edit_notify(user_id, flag):
     async with AsyncSession(bind=engine) as session:
         stmt = select(Medicine.notifications).where(Medicine.user_id == user_id).limit(1)
         result = await session.execute(stmt)
-        if result.all()[0][0] != flag:
+        if result.scalar() != flag:
             stmt = update(Medicine).where(Medicine.user_id == user_id).values(notifications=flag)
             await session.execute(stmt)
             await session.commit()
             return True
         else:
             return False
-        # stmt = update(Medicine).where(
-        #     case(
-        #         (Medicine.notifications != flag, flag)
-        #     ), Medicine.user_id == user_id).values(notifications=flag)
-        # res = await session.execute(stmt)
-

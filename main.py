@@ -9,14 +9,11 @@ from scheduler import scheduler
 
 logging.basicConfig(level=logging.INFO)
 
+
 async def on_startup(_):
-    #asyncio.create_task(handlers.scheduler())
     scheduler.start()
     await handlers.schedule()
     print("Bot online")
-
-async def on_shutdown(_):
-    scheduler.shutdown(wait=False)
 
 
 async def on_startup_web(dp):
@@ -24,13 +21,11 @@ async def on_startup_web(dp):
     scheduler.start()
     await handlers.schedule()
     print("Bot online")
-    #asyncio.create_task(handlers.scheduler())
 
 
-
-# async def on_shutdown(dp):
-#     scheduler.shutdown(wait=False)
-#     await bot.delete_webhook()
+async def on_shutdown(dp):
+     scheduler.shutdown(wait=False)
+     await bot.delete_webhook()
 
 
 handlers.reg_handlers(dp)

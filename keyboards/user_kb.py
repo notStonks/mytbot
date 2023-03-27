@@ -7,10 +7,11 @@ b2 = KeyboardButton("Удалить лекарство")
 b3 = KeyboardButton("Удалить все лекарства")
 b4 = KeyboardButton("Включить напоминания")
 b5 = KeyboardButton("Выключить напоминания")
+b6 = KeyboardButton("Посмотреть лекарства")
 
 user_kb = ReplyKeyboardMarkup(resize_keyboard=True)
 
-user_kb.row(b1, b2).add(b3).row(b4, b5)
+user_kb.row(b1, b6).row(b2, b3).row(b4, b5)
 # Когда принимаем? (до, во время или после пищи, вне зависимости от приема)\nДо - 0\nВо время - 1\nПосле - 2\nВне зависимости - 3"
 ib1 = InlineKeyboardButton("До", callback_data="0")
 ib2 = InlineKeyboardButton("Во время", callback_data="1")
