@@ -1,13 +1,13 @@
 import datetime
 from aiogram import types, Dispatcher
 from aiogram.dispatcher.filters import Text
-from creation_bot import bot
-from keyboards import user_kb, time_kb
+from tgbot.creation_bot import bot
+from tgbot.keyboards import user_kb, time_kb
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from database import db_requests
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from scheduler import scheduler
+from tgbot.scheduler import scheduler
 
 enum = ["до", "во время", "после", "вне зависимости от"]
 
@@ -183,7 +183,8 @@ async def notification(user_id, medicine_name, reception_time):
 
 
 def reg_handlers(dp: Dispatcher):
-    dp.register_message_handler(start, Text(equals="start"), commands="start")
+    dp.register_message_handler(start, Text(equals="start"))
+    dp.register_message_handler(start, commands="start")
     dp.register_message_handler(add_medicine_start, Text(equals="Добавить лекарство"), state=None)
     dp.register_message_handler(cancel_handler, Text(equals="Отмена"), state="*")
     dp.register_message_handler(name_add, state=FSMadd.name)

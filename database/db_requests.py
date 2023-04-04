@@ -1,6 +1,6 @@
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from database import engine
+from database.database import engine
 from models.models import Medicine, Time
 
 

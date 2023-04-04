@@ -1,12 +1,8 @@
 import datetime
 from typing import List
-
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-
-from sqlalchemy import Table, Integer, String, Column, ForeignKey, Time, Boolean
+from sqlalchemy import ForeignKey, Time, text
 from database import Base
-
-import enum
 
 
 # class time_of_receptionsEnum(enum.Enum):
@@ -35,3 +31,12 @@ class Time(Base):
     reception_time: Mapped[datetime.time] = mapped_column(nullable=False)
     medicine_id: Mapped[int] = mapped_column(ForeignKey('medicine.id', ondelete="CASCADE"))
 
+
+class User(Base):
+    __tablename__ = 'user'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(unique=True, index=True)
+    name: Mapped[str]
+    hashed_password: Mapped[str]
+    is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
